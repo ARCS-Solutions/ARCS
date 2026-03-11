@@ -2,25 +2,25 @@
 
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DriveIQ Maroc — Calculateur financement auto</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #faf7f2; }
-    input[type=number]::-webkit-outer-spin-button,
-    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type=number] { -moz-appearance: textfield; }
-    ::-webkit-scrollbar { display: none; }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DriveIQ Maroc</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #faf7f2; }
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+input[type=number] { -moz-appearance: textfield; }
+::-webkit-scrollbar { display: none; }
+</style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="text/babel">
-    const { useState, useRef } = React;
+<div id="root"><p style="padding:40px;font-family:sans-serif;color:#888">Chargement...</p></div>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+<script type="text/babel" data-presets="react,env">
+const { useState, useRef } = React;
 
 /* ─── Finance ────────────────────────────────────────────── */
 function calcMens(rev, chg) { return Math.max(0, rev * 0.5 - chg); }
@@ -86,31 +86,31 @@ var ROADMAP = [
 ];
 
 var VOITURES = [
-{ nom: “Dacia Sandero”,    marque: “Dacia”,      prix: 128000, cat: “citadine” },
-{ nom: “Dacia Logan”,      marque: “Dacia”,      prix: 139000, cat: “citadine” },
-{ nom: “Renault Clio”,     marque: “Renault”,    prix: 189000, cat: “citadine” },
-{ nom: “Peugeot 208”,      marque: “Peugeot”,    prix: 209000, cat: “citadine” },
-{ nom: “Toyota Yaris”,     marque: “Toyota”,     prix: 229000, cat: “citadine” },
-{ nom: “VW Polo”,          marque: “Volkswagen”, prix: 248000, cat: “citadine” },
-{ nom: “Mini Cooper”,      marque: “Mini”,       prix: 389000, cat: “citadine” },
-{ nom: “Dacia Duster”,     marque: “Dacia”,      prix: 215000, cat: “suv” },
-{ nom: “Renault Kadjar”,   marque: “Renault”,    prix: 289000, cat: “suv” },
-{ nom: “Peugeot 3008”,     marque: “Peugeot”,    prix: 349000, cat: “suv” },
-{ nom: “Hyundai Tucson”,   marque: “Hyundai”,    prix: 379000, cat: “suv” },
-{ nom: “Toyota RAV4”,      marque: “Toyota”,     prix: 439000, cat: “suv” },
-{ nom: “BMW X3”,           marque: “BMW”,        prix: 649000, cat: “suv” },
-{ nom: “Mercedes GLC”,     marque: “Mercedes”,   prix: 749000, cat: “suv” },
-{ nom: “Renault Megane”,   marque: “Renault”,    prix: 249000, cat: “berline” },
-{ nom: “VW Golf”,          marque: “Volkswagen”, prix: 299000, cat: “berline” },
-{ nom: “Toyota Corolla”,   marque: “Toyota”,     prix: 319000, cat: “berline” },
-{ nom: “BMW Serie 3”,      marque: “BMW”,        prix: 529000, cat: “berline” },
-{ nom: “MG4 Electric”,     marque: “MG”,         prix: 289000, cat: “electrique” },
-{ nom: “BYD Atto 3”,       marque: “BYD”,        prix: 329000, cat: “electrique” },
-{ nom: “Tesla Model 3”,    marque: “Tesla”,      prix: 489000, cat: “electrique” },
-{ nom: “Dacia Dokker”,     marque: “Dacia”,      prix: 178000, cat: “utilitaire” },
-{ nom: “Renault Kangoo”,   marque: “Renault”,    prix: 228000, cat: “utilitaire” },
-{ nom: “Citroën Berlingo”, marque: “Citroën”,    prix: 239000, cat: “utilitaire” },
-{ nom: “VW Caddy”,         marque: “Volkswagen”, prix: 299000, cat: “utilitaire” },
+{ nom: “Dacia Sandero”,    marque: “Dacia”,      prix: 128000, cat: “citadine”,   img: “https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/2021_Dacia_Sandero_Comfort_SCe_65%2C_front_8.28.21.jpg/320px-2021_Dacia_Sandero_Comfort_SCe_65%2C_front_8.28.21.jpg” },
+{ nom: “Dacia Logan”,      marque: “Dacia”,      prix: 139000, cat: “citadine”,   img: “https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/2021_Dacia_Logan_Comfort_TCe_90%2C_front_8.4.21.jpg/320px-2021_Dacia_Logan_Comfort_TCe_90%2C_front_8.4.21.jpg” },
+{ nom: “Renault Clio”,     marque: “Renault”,    prix: 189000, cat: “citadine”,   img: “https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/2019_Renault_Clio_V_1.0_TCe_100_%28UK%29%2C_front_8.12.19.jpg/320px-2019_Renault_Clio_V_1.0_TCe_100_%28UK%29%2C_front_8.12.19.jpg” },
+{ nom: “Peugeot 208”,      marque: “Peugeot”,    prix: 209000, cat: “citadine”,   img: “https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/2019_Peugeot_208_Active_1.2_Front.jpg/320px-2019_Peugeot_208_Active_1.2_Front.jpg” },
+{ nom: “Toyota Yaris”,     marque: “Toyota”,     prix: 229000, cat: “citadine”,   img: “https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/2020_Toyota_Yaris_Icon_1.0_Front.jpg/320px-2020_Toyota_Yaris_Icon_1.0_Front.jpg” },
+{ nom: “VW Polo”,          marque: “Volkswagen”, prix: 248000, cat: “citadine”,   img: “https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/2018_Volkswagen_Polo_SE_1.0_Front.jpg/320px-2018_Volkswagen_Polo_SE_1.0_Front.jpg” },
+{ nom: “Mini Cooper”,      marque: “Mini”,       prix: 389000, cat: “citadine”,   img: “https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/2018_MINI_Cooper_1.5_Front.jpg/320px-2018_MINI_Cooper_1.5_Front.jpg” },
+{ nom: “Dacia Duster”,     marque: “Dacia”,      prix: 215000, cat: “suv”,        img: “https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/2022_Dacia_Duster_Extreme_TCe_130_4x2_front_2%2C_Facel%C3%ADas.jpg/320px-2022_Dacia_Duster_Extreme_TCe_130_4x2_front_2%2C_Facel%C3%ADas.jpg” },
+{ nom: “Renault Kadjar”,   marque: “Renault”,    prix: 289000, cat: “suv”,        img: “https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/2019_Renault_Kadjar_Iconic_TCe_140_Front.jpg/320px-2019_Renault_Kadjar_Iconic_TCe_140_Front.jpg” },
+{ nom: “Peugeot 3008”,     marque: “Peugeot”,    prix: 349000, cat: “suv”,        img: “https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/2017_Peugeot_3008_Allure_BlueHDi_120_Front.jpg/320px-2017_Peugeot_3008_Allure_BlueHDi_120_Front.jpg” },
+{ nom: “Hyundai Tucson”,   marque: “Hyundai”,    prix: 379000, cat: “suv”,        img: “https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/2021_Hyundai_Tucson_%28NX4%29_2.0_MPI_2WD_%28China%29_front_view_01.jpg/320px-2021_Hyundai_Tucson_%28NX4%29_2.0_MPI_2WD_%28China%29_front_view_01.jpg” },
+{ nom: “Toyota RAV4”,      marque: “Toyota”,     prix: 439000, cat: “suv”,        img: “https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/2019_Toyota_RAV4_2.0_GX_automatic%2C_front_8.12.19.jpg/320px-2019_Toyota_RAV4_2.0_GX_automatic%2C_front_8.12.19.jpg” },
+{ nom: “BMW X3”,           marque: “BMW”,        prix: 649000, cat: “suv”,        img: “https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/2022_BMW_X3_xDrive20d_M_Sport_facelift%2C_front_8.26.22.jpg/320px-2022_BMW_X3_xDrive20d_M_Sport_facelift%2C_front_8.26.22.jpg” },
+{ nom: “Mercedes GLC”,     marque: “Mercedes”,   prix: 749000, cat: “suv”,        img: “https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Mercedes-Benz_GLC_300_%28W253%2C_facelift%2C_blue%29%2C_front_8.15.20.jpg/320px-Mercedes-Benz_GLC_300_%28W253%2C_facelift%2C_blue%29%2C_front_8.15.20.jpg” },
+{ nom: “Renault Megane”,   marque: “Renault”,    prix: 249000, cat: “berline”,    img: “https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/2016_Renault_Megane_IV_1.2_TCe_130_GT-Line_%28cropped%29.jpg/320px-2016_Renault_Megane_IV_1.2_TCe_130_GT-Line_%28cropped%29.jpg” },
+{ nom: “VW Golf”,          marque: “Volkswagen”, prix: 299000, cat: “berline”,    img: “https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/2020_Volkswagen_Golf_Style_1.5_TSI_Front.jpg/320px-2020_Volkswagen_Golf_Style_1.5_TSI_Front.jpg” },
+{ nom: “Toyota Corolla”,   marque: “Toyota”,     prix: 319000, cat: “berline”,    img: “https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/2019_Toyota_Corolla_Icon_Tech_VVT-i_Hybrid_1.8_Front.jpg/320px-2019_Toyota_Corolla_Icon_Tech_VVT-i_Hybrid_1.8_Front.jpg” },
+{ nom: “BMW Serie 3”,      marque: “BMW”,        prix: 529000, cat: “berline”,    img: “https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/2019_BMW_320d_M_Sport_Automatic_2.0_Front.jpg/320px-2019_BMW_320d_M_Sport_Automatic_2.0_Front.jpg” },
+{ nom: “MG4 Electric”,     marque: “MG”,         prix: 289000, cat: “electrique”, img: “https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/2023_MG4_EV_Luxury_front.jpg/320px-2023_MG4_EV_Luxury_front.jpg” },
+{ nom: “BYD Atto 3”,       marque: “BYD”,        prix: 329000, cat: “electrique”, img: “https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/BYD_Atto_3_-*front*%28cropped%29.jpg/320px-BYD_Atto_3_-*front*%28cropped%29.jpg” },
+{ nom: “Tesla Model 3”,    marque: “Tesla”,      prix: 489000, cat: “electrique”, img: “https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/2019_Tesla_Model_3_Performance_AWD_%28facelift%2C_red%29%2C_front_8.6.19.jpg/320px-2019_Tesla_Model_3_Performance_AWD_%28facelift%2C_red%29%2C_front_8.6.19.jpg” },
+{ nom: “Dacia Dokker”,     marque: “Dacia”,      prix: 178000, cat: “utilitaire”, img: “https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/Dacia_Dokker_front_20120906.jpg/320px-Dacia_Dokker_front_20120906.jpg” },
+{ nom: “Renault Kangoo”,   marque: “Renault”,    prix: 228000, cat: “utilitaire”, img: “https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/2022_Renault_Kangoo_dCi_115_Techno_EDC%2C_front_8.8.22.jpg/320px-2022_Renault_Kangoo_dCi_115_Techno_EDC%2C_front_8.8.22.jpg” },
+{ nom: “Citroën Berlingo”, marque: “Citroën”,    prix: 239000, cat: “utilitaire”, img: “https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/2019_Citroen_Berlingo_PureTech_110_Feel_front_8.10.19.jpg/320px-2019_Citroen_Berlingo_PureTech_110_Feel_front_8.10.19.jpg” },
+{ nom: “VW Caddy”,         marque: “Volkswagen”, prix: 299000, cat: “utilitaire”, img: “https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/2021_Volkswagen_Caddy_Life_TGI_front_8.8.21.jpg/320px-2021_Volkswagen_Caddy_Life_TGI_front_8.8.21.jpg” },
 ];
 
 var CATS = [“citadine”, “suv”, “berline”, “electrique”, “utilitaire”];
@@ -126,6 +126,7 @@ var ACC  = “#c4622d”;
 var SURF = “#f3ede4”;
 
 /* ─── SVG voitures par catégorie (inline, zéro réseau) ──── */
+function getSVG(cat) {
 var SVG_CARS = {
 citadine: (
 <svg viewBox=“0 0 200 80” xmlns=“http://www.w3.org/2000/svg” style={{ width: “100%”, height: “100%” }}>
@@ -219,6 +220,8 @@ utilitaire: (
 </svg>
 ),
 };
+return SVG_CARS[cat] || SVG_CARS[“citadine”];
+}
 
 /* ─── Composant Champ saisie ─────────────────────────────── */
 function Champ(props) {
@@ -343,14 +346,24 @@ const etire  = v.prix > budget && v.prix <= budget * 1.2;
 const hors   = v.prix > budget * 1.2;
 const topCol  = hors ? BORD : etire ? “#f59e0b” : ACC;
 const prixCol = etire ? “#b45309” : TEXT;
-const svgImg  = SVG_CARS[v.cat] || SVG_CARS[“citadine”];
+const svgImg  = getSVG(v.cat);
 
 return (
 <div style={{ background: CARD, border: “1px solid “ + BORD, borderTop: “3px solid “ + topCol, borderRadius: 10, overflow: “hidden”, opacity: hors ? 0.45 : 1 }}>
-{/* Illustration */}
-<div style={{ width: “100%”, height: 88, position: “relative”, overflow: “hidden” }}>
+{/* Photo ou illustration de fallback */}
+<div style={{ width: “100%”, height: 110, position: “relative”, overflow: “hidden”, background: SURF }}>
+{v.img ? (
+<img
+src={v.img}
+alt={v.nom}
+style={{ width: “100%”, height: “100%”, objectFit: “cover”, display: “block” }}
+onError={function(e) { e.currentTarget.style.display = “none”; e.currentTarget.nextSibling.style.display = “block”; }}
+/>
+) : null}
+<div style={{ display: v.img ? “none” : “block”, width: “100%”, height: “100%” }}>
 {svgImg}
-<div style={{ position: “absolute”, top: 6, right: 6, padding: “2px 7px”, background: “rgba(0,0,0,0.45)”, borderRadius: 4, fontSize: 9, color: “#fff”, fontFamily: “sans-serif”, letterSpacing: “1px”, textTransform: “uppercase” }}>
+</div>
+<div style={{ position: “absolute”, top: 6, right: 6, padding: “2px 7px”, background: “rgba(0,0,0,0.55)”, borderRadius: 4, fontSize: 9, color: “#fff”, fontFamily: “sans-serif”, letterSpacing: “1px”, textTransform: “uppercase” }}>
 {v.marque}
 </div>
 </div>
@@ -1065,9 +1078,10 @@ return (
 return null;
 }
 
-const root = ReactDOM.createRoot(document.getElementById(“root”));
-root.render(React.createElement(DriveIQMaroc));
+ReactDOM.createRoot(document.getElementById(‘root’)).render(
+React.createElement(DriveIQMaroc)
+);
+</script>
 
-  </script>
 </body>
 </html>
