@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DriveIQ Maroc — Calculateur financement auto</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #faf7f2; }
+    input[type=number]::-webkit-outer-spin-button,
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef } = React;
+
+/* ─── Finance ────────────────────────────────────────────── */
+function calcMens(rev, chg) { return Math.max(0, rev * 0.5 - chg); }
+function calcCap(mensMax, taux, mois) {
+if (mensMax <= 0) return 0;
+var r = taux / 12;
+if (r === 0) return mensMax * mois;
+return mensMax * (1 - Math.pow(1 + r, -mois)) / r;
+}
+function calcBudget(cap, apportPct) {
+if (apportPct >= 1) return cap;
+return cap / (1 - apportPct);
+}
+function affMAD(n) {
+return new Intl.NumberFormat(“fr-MA”, { maximumFractionDigits: 0 }).format(Math.round(n || 0)) + “ MAD”;
+}
+function affPct(n) { return ((n || 0) * 100).toFixed(1) + “ %”; }
+
+/* ─── Données ────────────────────────────────────────────── */
+var DUREES = [
+{ mois: 12, ans: “1 an”  },
+{ mois: 24, ans: “2 ans” },
+{ mois: 36, ans: “3 ans” },
+{ mois: 48, ans: “4 ans” },
+{ mois: 60, ans: “5 ans” },
+{ mois: 72, ans: “6 ans” },
+];
+
+var TAUX_BANQUES = { 12: 0.055, 24: 0.058, 36: 0.062, 48: 0.065, 60: 0.068, 72: 0.071 };
+
+var APPORTS = [0, 10, 20, 30, 40, 50];
+
+var BANQUES = [
+{ nom: “CIH Bank”,         code: “CIH”, color: “006B3F”,
+taux: { 12: 0.055, 24: 0.058, 36: 0.062, 48: 0.065, 60: 0.068, 72: 0.071 },
+frais: 800,  assurance: 0.002,  note: “Taux les plus compétitifs du marché” },
+{ nom: “Banque Populaire”, code: “BP”,  color: “003F87”,
+taux: { 12: 0.056, 24: 0.060, 36: 0.064, 48: 0.068, 60: 0.071, 72: 0.074 },
+frais: 1000, assurance: 0.0025, note: “Réseau le plus dense au Maroc” },
+{ nom: “Salafin”,          code: “SAL”, color: “E5232A”,
+taux: { 12: 0.060, 24: 0.064, 36: 0.068, 48: 0.072, 60: 0.075, 72: 0.078 },
+frais: 1200, assurance: 0.0025, note: “Filiale BCP · Réponse rapide” },
+{ nom: “Eqdom”,            code: “EQ”,  color: “F7901E”,
+taux: { 12: 0.062, 24: 0.066, 36: 0.070, 48: 0.074, 60: 0.077, 72: 0.080 },
+frais: 1000, assurance: 0.003,  note: “Filiale Société Générale Maroc” },
+{ nom: “Attijariwafa”,     code: “ATW”, color: “CE1126”,
+taux: { 12: 0.058, 24: 0.062, 36: 0.066, 48: 0.070, 60: 0.073, 72: 0.076 },
+frais: 1800, assurance: 0.003,  note: “1ère banque du Maroc par actifs” },
+{ nom: “Wafasalaf”,        code: “WAF”, color: “1B4F8A”,
+taux: { 12: 0.064, 24: 0.068, 36: 0.072, 48: 0.076, 60: 0.079, 72: 0.082 },
+frais: 1500, assurance: 0.003,  note: “Leader crédit consommation” },
+];
+
+var ROADMAP = [
+{ ph: “Phase 1”, st: “live”,   t: “Scoring financier Maroc”,   d: “Taux d’endettement 50% + capacite d’emprunt selon Bank Al-Maghrib.” },
+{ ph: “Phase 2”, st: “live”,   t: “Catalogue vehicules neufs”,  d: “25 modeles, prix TTC 2025 source Wandaloo.ma, filtres sur budget.” },
+{ ph: “Phase 3”, st: “live”,   t: “Scenarios de duree”,         d: “6 durees de 12 a 72 mois avec taux ajuste et apport configurable.” },
+{ ph: “Phase 4”, st: “build”,  t: “Scraper temps reel”,         d: “Pipeline Playwright automatise — Wandaloo.ma + Moteur.ma, hebdomadaire.” },
+{ ph: “Phase 5”, st: “soon”,   t: “Comparateur banques live”,   d: “Simulation credit instantanee : Wafasalaf, Salafin, CIH, Attijariwafa.” },
+{ ph: “Phase 6”, st: “soon”,   t: “Recommandation IA”,          d: “Modele ML entraine sur les profils et comportements marocains.” },
+{ ph: “Phase 7”, st: “vision”, t: “DriveScore MA”,              d: “Score propriétaire : finances + OBD2 + cote Wandaloo + assurance CNIA.” },
+{ ph: “Phase 8”, st: “vision”, t: “Marketplace integree”,       d: “Achat, credit, assurance et immatriculation 100% digital.” },
+];
+
+var VOITURES = [
+{ nom: “Dacia Sandero”,    marque: “Dacia”,      prix: 128000, cat: “citadine” },
+{ nom: “Dacia Logan”,      marque: “Dacia”,      prix: 139000, cat: “citadine” },
+{ nom: “Renault Clio”,     marque: “Renault”,    prix: 189000, cat: “citadine” },
+{ nom: “Peugeot 208”,      marque: “Peugeot”,    prix: 209000, cat: “citadine” },
+{ nom: “Toyota Yaris”,     marque: “Toyota”,     prix: 229000, cat: “citadine” },
+{ nom: “VW Polo”,          marque: “Volkswagen”, prix: 248000, cat: “citadine” },
+{ nom: “Mini Cooper”,      marque: “Mini”,       prix: 389000, cat: “citadine” },
+{ nom: “Dacia Duster”,     marque: “Dacia”,      prix: 215000, cat: “suv” },
+{ nom: “Renault Kadjar”,   marque: “Renault”,    prix: 289000, cat: “suv” },
+{ nom: “Peugeot 3008”,     marque: “Peugeot”,    prix: 349000, cat: “suv” },
+{ nom: “Hyundai Tucson”,   marque: “Hyundai”,    prix: 379000, cat: “suv” },
+{ nom: “Toyota RAV4”,      marque: “Toyota”,     prix: 439000, cat: “suv” },
+{ nom: “BMW X3”,           marque: “BMW”,        prix: 649000, cat: “suv” },
+{ nom: “Mercedes GLC”,     marque: “Mercedes”,   prix: 749000, cat: “suv” },
+{ nom: “Renault Megane”,   marque: “Renault”,    prix: 249000, cat: “berline” },
+{ nom: “VW Golf”,          marque: “Volkswagen”, prix: 299000, cat: “berline” },
+{ nom: “Toyota Corolla”,   marque: “Toyota”,     prix: 319000, cat: “berline” },
+{ nom: “BMW Serie 3”,      marque: “BMW”,        prix: 529000, cat: “berline” },
+{ nom: “MG4 Electric”,     marque: “MG”,         prix: 289000, cat: “electrique” },
+{ nom: “BYD Atto 3”,       marque: “BYD”,        prix: 329000, cat: “electrique” },
+{ nom: “Tesla Model 3”,    marque: “Tesla”,      prix: 489000, cat: “electrique” },
+{ nom: “Dacia Dokker”,     marque: “Dacia”,      prix: 178000, cat: “utilitaire” },
+{ nom: “Renault Kangoo”,   marque: “Renault”,    prix: 228000, cat: “utilitaire” },
+{ nom: “Citroën Berlingo”, marque: “Citroën”,    prix: 239000, cat: “utilitaire” },
+{ nom: “VW Caddy”,         marque: “Volkswagen”, prix: 299000, cat: “utilitaire” },
+];
+
+var CATS = [“citadine”, “suv”, “berline”, “electrique”, “utilitaire”];
+var CAT_LABELS = { citadine: “Citadine”, suv: “SUV / 4x4”, berline: “Berline”, electrique: “Electrique”, utilitaire: “Utilitaire” };
+
+/* ─── Tokens ──────────────────────────────────────────────── */
+var BG   = “#faf7f2”;
+var CARD = “#ffffff”;
+var BORD = “#e8dfd3”;
+var TEXT = “#1c1a17”;
+var MUTE = “#8a7f72”;
+var ACC  = “#c4622d”;
+var SURF = “#f3ede4”;
+
+/* ─── SVG voitures par catégorie (inline, zéro réseau) ──── */
+var SVG_CARS = {
+citadine: (
+<svg viewBox=“0 0 200 80” xmlns=“http://www.w3.org/2000/svg” style={{ width: “100%”, height: “100%” }}>
+<rect width="200" height="80" fill="#f3ede4"/>
+<g transform="translate(20, 15)">
+<rect x="10" y="32" width="140" height="22" rx="4" fill="#8a7f72"/>
+<path d="M30 32 L45 14 L105 14 L125 32 Z" fill="#a0948a"/>
+<rect x="46" y="17" width="24" height="13" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<rect x="74" y="17" width="26" height="13" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<circle cx="42" cy="54" r="10" fill="#444"/>
+<circle cx="42" cy="54" r="6" fill="#888"/>
+<circle cx="118" cy="54" r="10" fill="#444"/>
+<circle cx="118" cy="54" r="6" fill="#888"/>
+<rect x="0" y="38" width="12" height="8" rx="2" fill="#f5c842" opacity="0.9"/>
+<rect x="140" y="38" width="12" height="8" rx="2" fill="#e55" opacity="0.7"/>
+</g>
+</svg>
+),
+berline: (
+<svg viewBox=“0 0 200 80” xmlns=“http://www.w3.org/2000/svg” style={{ width: “100%”, height: “100%” }}>
+<rect width="200" height="80" fill="#f3ede4"/>
+<g transform="translate(15, 12)">
+<rect x="5" y="33" width="155" height="22" rx="4" fill="#7a6f68"/>
+<path d="M20 33 L35 12 L120 12 L140 33 Z" fill="#9a8f88"/>
+<rect x="37" y="15" width="28" height="15" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<rect x="69" y="15" width="28" height="15" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<rect x="100" y="15" width="16" height="15" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<circle cx="38" cy="55" r="11" fill="#333"/>
+<circle cx="38" cy="55" r="7" fill="#777"/>
+<circle cx="128" cy="55" r="11" fill="#333"/>
+<circle cx="128" cy="55" r="7" fill="#777"/>
+<rect x="0" y="38" width="10" height="8" rx="2" fill="#f5c842" opacity="0.9"/>
+<rect x="155" y="38" width="10" height="7" rx="2" fill="#e55" opacity="0.7"/>
+</g>
+</svg>
+),
+suv: (
+<svg viewBox=“0 0 200 80” xmlns=“http://www.w3.org/2000/svg” style={{ width: “100%”, height: “100%” }}>
+<rect width="200" height="80" fill="#f3ede4"/>
+<g transform="translate(18, 8)">
+<rect x="8" y="28" width="150" height="28" rx="5" fill="#6b6058"/>
+<path d="M22 28 L28 10 L132 10 L142 28 Z" fill="#8a7a70"/>
+<rect x="30" y="13" width="30" height="13" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<rect x="65" y="13" width="30" height="13" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<rect x="100" y="13" width="28" height="13" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<circle cx="40" cy="57" r="12" fill="#2a2a2a"/>
+<circle cx="40" cy="57" r="7" fill="#666"/>
+<circle cx="126" cy="57" r="12" fill="#2a2a2a"/>
+<circle cx="126" cy="57" r="7" fill="#666"/>
+<rect x="0" y="33" width="12" height="10" rx="2" fill="#f5c842" opacity="0.9"/>
+<rect x="153" y="33" width="12" height="9" rx="2" fill="#e55" opacity="0.7"/>
+<rect x="8" y="28" width="7" height="12" rx="2" fill="#555" opacity="0.5"/>
+<rect x="151" y="28" width="7" height="12" rx="2" fill="#555" opacity="0.5"/>
+</g>
+</svg>
+),
+electrique: (
+<svg viewBox=“0 0 200 80” xmlns=“http://www.w3.org/2000/svg” style={{ width: “100%”, height: “100%” }}>
+<rect width="200" height="80" fill="#eaf4fb"/>
+<g transform="translate(18, 12)">
+<rect x="8" y="31" width="148" height="22" rx="5" fill="#5a7a9a"/>
+<path d="M25 31 L38 12 L122 12 L138 31 Z" fill="#7a9aba"/>
+<rect x="40" y="15" width="26" height="14" rx="2" fill="#d4f0ff" opacity="0.9"/>
+<rect x="70" y="15" width="26" height="14" rx="2" fill="#d4f0ff" opacity="0.9"/>
+<rect x="100" y="15" width="18" height="14" rx="2" fill="#d4f0ff" opacity="0.9"/>
+<circle cx="38" cy="53" r="11" fill="#222"/>
+<circle cx="38" cy="53" r="7" fill="#5a7a9a"/>
+<circle cx="126" cy="53" r="11" fill="#222"/>
+<circle cx="126" cy="53" r="7" fill="#5a7a9a"/>
+<text x="72" y="45" fontSize="12" fill="#f5c842" fontWeight="bold" fontFamily="sans-serif">⚡</text>
+<rect x="0" y="36" width="11" height="8" rx="2" fill="#aaddff" opacity="0.9"/>
+<rect x="153" y="36" width="11" height="8" rx="2" fill="#e55" opacity="0.7"/>
+</g>
+</svg>
+),
+utilitaire: (
+<svg viewBox=“0 0 200 80” xmlns=“http://www.w3.org/2000/svg” style={{ width: “100%”, height: “100%” }}>
+<rect width="200" height="80" fill="#f3ede4"/>
+<g transform="translate(15, 10)">
+<rect x="50" y="10" width="110" height="42" rx="4" fill="#7a7268"/>
+<rect x="5" y="20" width="52" height="32" rx="4" fill="#6a6258"/>
+<rect x="8" y="22" width="24" height="18" rx="2" fill="#c8e6f5" opacity="0.8"/>
+<rect x="55" y="13" width="100" height="4" rx="2" fill="#5a5248" opacity="0.5"/>
+<circle cx="30" cy="54" r="11" fill="#2a2a2a"/>
+<circle cx="30" cy="54" r="7" fill="#666"/>
+<circle cx="140" cy="54" r="11" fill="#2a2a2a"/>
+<circle cx="140" cy="54" r="7" fill="#666"/>
+<rect x="0" y="28" width="10" height="8" rx="2" fill="#f5c842" opacity="0.9"/>
+<rect x="158" y="30" width="10" height="8" rx="2" fill="#e55" opacity="0.7"/>
+</g>
+</svg>
+),
+};
+
+/* ─── Composant Champ saisie ─────────────────────────────── */
+function Champ(props) {
+const [focus, setFocus] = useState(false);
+return (
+<div style={{ marginBottom: 16 }}>
+<div style={{ fontSize: 10, color: MUTE, textTransform: “uppercase”, letterSpacing: “2px”, marginBottom: 5, fontFamily: “sans-serif”, fontWeight: 600 }}>
+{props.label}
+</div>
+<div style={{ position: “relative” }}>
+<input
+type=“number” value={props.value} placeholder=“0” min=“0”
+onChange={function(e) { props.onChange(e.target.value); }}
+onFocus={function() { setFocus(true); }}
+onBlur={function() { setFocus(false); }}
+style={{ display: “block”, width: “100%”, boxSizing: “border-box”, padding: “12px 56px 12px 14px”, fontSize: 20, fontWeight: 700, color: TEXT, background: CARD, border: “2px solid “ + (focus ? ACC : BORD), borderRadius: 8, outline: “none”, fontFamily: “Georgia, serif” }}
+/>
+<span style={{ position: “absolute”, right: 12, top: “50%”, transform: “translateY(-50%)”, fontSize: 11, color: MUTE, fontFamily: “monospace”, pointerEvents: “none” }}>MAD</span>
+</div>
+{props.hint && <div style={{ fontSize: 11, color: MUTE, marginTop: 4, fontFamily: “sans-serif” }}>{props.hint}</div>}
+</div>
+);
+}
+
+/* ─── Slider durée (ascenseur horizontal) ────────────────── */
+function SliderDuree(props) {
+var dureeChoisie = props.dureeChoisie;
+var setDuree     = props.setDuree;
+var mensMax      = props.mensMax;
+var apportPct    = props.apportPct;
+var getTauxFn    = props.getTaux || function(m) { return TAUX_BANQUES[m]; };
+var scrollRef    = useRef(null);
+
+var idx = DUREES.findIndex(function(d) { return d.mois === dureeChoisie; });
+
+function scrollTo(newIdx) {
+var clamped = Math.max(0, Math.min(DUREES.length - 1, newIdx));
+setDuree(DUREES[clamped].mois);
+if (scrollRef.current) {
+var cardW = 200 + 12; // card width + gap
+scrollRef.current.scrollTo({ left: clamped * cardW - 20, behavior: “smooth” });
+}
+}
+
+return (
+<div style={{ position: “relative” }}>
+{/* Flèche gauche */}
+<button
+onClick={function() { scrollTo(idx - 1); }}
+disabled={idx === 0}
+style={{ position: “absolute”, left: 0, top: “50%”, transform: “translateY(-50%)”, zIndex: 10, width: 36, height: 36, borderRadius: “50%”, border: “1px solid “ + BORD, background: idx === 0 ? SURF : CARD, cursor: idx === 0 ? “default” : “pointer”, display: “flex”, alignItems: “center”, justifyContent: “center”, boxShadow: “0 2px 8px rgba(0,0,0,0.08)”, opacity: idx === 0 ? 0.4 : 1 }}
+>
+<span style={{ fontSize: 14, color: TEXT, marginTop: -1 }}>‹</span>
+</button>
+
+```
+  {/* Flèche droite */}
+  <button
+    onClick={function() { scrollTo(idx + 1); }}
+    disabled={idx === DUREES.length - 1}
+    style={{ position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", zIndex: 10, width: 36, height: 36, borderRadius: "50%", border: "1px solid " + BORD, background: idx === DUREES.length - 1 ? SURF : CARD, cursor: idx === DUREES.length - 1 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.08)", opacity: idx === DUREES.length - 1 ? 0.4 : 1 }}
+  >
+    <span style={{ fontSize: 14, color: TEXT, marginTop: -1 }}>›</span>
+  </button>
+
+  {/* Piste scrollable */}
+  <div
+    ref={scrollRef}
+    style={{ overflowX: "auto", scrollSnapType: "x mandatory", display: "flex", gap: 12, padding: "8px 48px", scrollbarWidth: "none", msOverflowStyle: "none" }}
+  >
+    {DUREES.map(function(d) {
+      var actif      = dureeChoisie === d.mois;
+      var taux       = getTauxFn(d.mois);
+      var cap        = calcCap(mensMax, taux, d.mois);
+      var budget     = calcBudget(cap, apportPct / 100);
+      return (
+        <button
+          key={d.mois}
+          onClick={function() { setDuree(d.mois); }}
+          style={{ flexShrink: 0, width: 200, scrollSnapAlign: "start", padding: "18px 16px", border: "2px solid " + (actif ? ACC : BORD), background: actif ? TEXT : CARD, borderRadius: 12, cursor: "pointer", textAlign: "left", outline: "none", transition: "all 0.18s" }}
+        >
+          {/* Durée */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: actif ? "#fff" : TEXT, fontFamily: "Georgia, serif", lineHeight: 1 }}>{d.mois}</div>
+            <div style={{ fontSize: 10, color: actif ? "#9ca3af" : MUTE, fontFamily: "sans-serif", fontWeight: 600, letterSpacing: "1px", textTransform: "uppercase" }}>MOIS</div>
+          </div>
+          <div style={{ fontSize: 11, color: actif ? "#9ca3af" : MUTE, fontFamily: "sans-serif", marginBottom: 14 }}>{d.ans + " · " + (taux * 100).toFixed(1) + "% /an"}</div>
+          {/* Budget */}
+          <div style={{ paddingTop: 12, borderTop: "1px solid " + (actif ? "#374151" : BORD) }}>
+            <div style={{ fontSize: 9, color: actif ? "#9ca3af" : MUTE, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>Budget véhicule</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: actif ? "#fbbf24" : ACC, fontFamily: "Georgia, serif" }}>{affMAD(budget)}</div>
+          </div>
+        </button>
+      );
+    })}
+  </div>
+
+  {/* Indicateurs de position */}
+  <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 10 }}>
+    {DUREES.map(function(d, i) {
+      return (
+        <button
+          key={d.mois}
+          onClick={function() { scrollTo(i); }}
+          style={{ width: i === idx ? 20 : 6, height: 6, borderRadius: 3, background: i === idx ? ACC : BORD, border: "none", cursor: "pointer", transition: "all 0.2s", padding: 0 }}
+        />
+      );
+    })}
+  </div>
+</div>
+```
+
+);
+}
+
+/* ─── Carte voiture avec SVG inline ─────────────────────── */
+function Carte(props) {
+const v      = props.voiture;
+const budget = props.budget;
+const ratio  = Math.round((v.prix / budget) * 100);
+const etire  = v.prix > budget && v.prix <= budget * 1.2;
+const hors   = v.prix > budget * 1.2;
+const topCol  = hors ? BORD : etire ? “#f59e0b” : ACC;
+const prixCol = etire ? “#b45309” : TEXT;
+const svgImg  = SVG_CARS[v.cat] || SVG_CARS[“citadine”];
+
+return (
+<div style={{ background: CARD, border: “1px solid “ + BORD, borderTop: “3px solid “ + topCol, borderRadius: 10, overflow: “hidden”, opacity: hors ? 0.45 : 1 }}>
+{/* Illustration */}
+<div style={{ width: “100%”, height: 88, position: “relative”, overflow: “hidden” }}>
+{svgImg}
+<div style={{ position: “absolute”, top: 6, right: 6, padding: “2px 7px”, background: “rgba(0,0,0,0.45)”, borderRadius: 4, fontSize: 9, color: “#fff”, fontFamily: “sans-serif”, letterSpacing: “1px”, textTransform: “uppercase” }}>
+{v.marque}
+</div>
+</div>
+{/* Contenu */}
+<div style={{ padding: “12px 14px” }}>
+<div style={{ fontSize: 14, fontWeight: 700, color: TEXT, marginBottom: 4, fontFamily: “Georgia, serif” }}>{v.nom}</div>
+<div style={{ fontSize: 17, fontWeight: 700, color: prixCol, fontFamily: “Georgia, serif”, marginBottom: 10 }}>{affMAD(v.prix)}</div>
+<div style={{ height: 3, background: SURF, borderRadius: 2, marginBottom: 5 }}>
+<div style={{ height: “100%”, width: Math.min(ratio, 100) + “%”, background: etire ? “#f59e0b” : topCol, borderRadius: 2 }} />
+</div>
+<div style={{ display: “flex”, justifyContent: “space-between” }}>
+<span style={{ fontSize: 10, color: MUTE, fontFamily: “sans-serif” }}>{ratio + “% du budget”}</span>
+<span style={{ fontSize: 9, color: MUTE, fontFamily: “sans-serif” }}>wandaloo.ma</span>
+</div>
+</div>
+</div>
+);
+}
+
+/* ─── Application principale ─────────────────────────────── */
+function DriveIQMaroc() {
+const [ecran,    setEcran]    = useState(0);
+const [sal,      setSal]      = useState(””);
+const [fonc,     setFonc]     = useState(””);
+const [alc,      setAlc]      = useState(””);
+const [arev,     setArev]     = useState(””);
+const [loyer,    setLoyer]    = useState(””);
+const [cred,     setCred]     = useState(””);
+const [assur,    setAssur]    = useState(””);
+const [achg,     setAchg]     = useState(””);
+const [duree,    setDuree]    = useState(60);
+const [avecApport, setAvecApport] = useState(false);
+const [apportPct,  setApportPct]  = useState(20);
+const [cat,      setCat]      = useState(“citadine”);
+const [onglet,   setOnglet]   = useState(“ok”);
+const [resultat, setResultat] = useState(null);
+const [tauxCustom, setTauxCustom] = useState(null);
+
+const totRev = (parseFloat(sal)||0)+(parseFloat(fonc)||0)+(parseFloat(alc)||0)+(parseFloat(arev)||0);
+const totChg = (parseFloat(loyer)||0)+(parseFloat(cred)||0)+(parseFloat(assur)||0)+(parseFloat(achg)||0);
+
+function calculer() {
+if (totRev <= 0) return;
+const taux    = totChg / totRev;
+const mensMax = calcMens(totRev, totChg);
+setResultat({ taux: taux, mensMax: mensMax });
+setTauxCustom(null);
+setEcran(3);
+}
+
+function apEffectif() { return avecApport ? apportPct : 0; }
+
+function getTaux(mois) {
+if (tauxCustom !== null && mois === duree) return tauxCustom / 100;
+return TAUX_BANQUES[mois];
+}
+
+function scenarioActif() {
+if (!resultat) return null;
+var tauxAnnuel = getTaux(duree);
+var ap  = apEffectif();
+var cap = calcCap(resultat.mensMax, tauxAnnuel, duree);
+var budget = calcBudget(cap, ap / 100);
+var coutTotalCredit = resultat.mensMax * duree;
+var interets = Math.max(0, coutTotalCredit - cap);
+return { cap: cap, budget: budget, apportMontant: budget * (ap / 100), tauxAnnuel: tauxAnnuel, coutTotalCredit: coutTotalCredit, interets: interets };
+}
+
+function calcScenarioBanque(banque) {
+if (!resultat) return null;
+var t = banque.taux[duree];
+var ap = apEffectif();
+var cap = calcCap(resultat.mensMax, t, duree);
+var budget = calcBudget(cap, ap / 100);
+var coutTotal = resultat.mensMax * duree;
+var interets = Math.max(0, coutTotal - cap);
+var assurMens = cap * banque.assurance / 12;
+return { cap: cap, budget: budget, tauxAnnuel: t, coutTotal: coutTotal, interets: interets, assurMens: assurMens, frais: banque.frais, mensualiteTotale: resultat.mensMax + assurMens };
+}
+
+function couleurTaux(t) {
+if (t > 0.5)  return “#dc2626”;
+if (t > 0.4)  return “#ea580c”;
+if (t > 0.25) return “#d97706”;
+return “#16a34a”;
+}
+function profilTaux(t) {
+if (t > 0.5)  return “Endettement critique”;
+if (t > 0.4)  return “Profil tendu”;
+if (t > 0.25) return “Profil équilibré”;
+return “Profil solide”;
+}
+
+function voituresFiltrees() {
+var sc     = scenarioActif();
+var b      = sc ? sc.budget : 0;
+var liste  = VOITURES.filter(function(v) { return v.cat === cat; });
+if (onglet === “ok”)    return liste.filter(function(v) { return v.prix <= b; });
+if (onglet === “etire”) return liste.filter(function(v) { return v.prix > b && v.prix <= b * 1.2; });
+return liste;
+}
+
+var page = { minHeight: “100vh”, background: BG, fontFamily: “Georgia, serif”, color: TEXT };
+var inner = { maxWidth: 600, margin: “0 auto”, padding: “40px 20px 80px” };
+var wide  = { maxWidth: 960, margin: “0 auto”, padding: “36px 20px 80px” };
+var btnP  = { padding: “14px 28px”, background: ACC, color: “#fff”, fontSize: 13, fontWeight: 700, border: “none”, borderRadius: 8, cursor: “pointer”, fontFamily: “sans-serif” };
+var btnS  = { padding: “12px 24px”, background: “transparent”, color: MUTE, fontSize: 13, border: “1px solid “ + BORD, borderRadius: 8, cursor: “pointer”, fontFamily: “sans-serif” };
+var LAB   = { fontSize: 10, color: ACC, textTransform: “uppercase”, letterSpacing: “2px”, fontFamily: “sans-serif”, fontWeight: 700 };
+
+function Nav() {
+return (
+<div style={{ background: BG, borderBottom: “1px solid “ + BORD, position: “sticky”, top: 0, zIndex: 50 }}>
+<div style={{ maxWidth: 960, margin: “0 auto”, padding: “0 20px”, height: 54, display: “flex”, alignItems: “center”, justifyContent: “space-between” }}>
+<button onClick={function() { setEcran(0); }} style={{ background: “none”, border: “none”, cursor: “pointer”, fontSize: 17, fontWeight: 700, fontFamily: “Georgia, serif”, color: TEXT, padding: 0 }}>
+Drive<span style={{ color: ACC }}>IQ</span>
+<span style={{ fontSize: 11, color: MUTE, fontWeight: 400, fontFamily: “sans-serif”, marginLeft: 8 }}>Maroc</span>
+</button>
+<div style={{ display: “flex”, gap: 6 }}>
+{resultat && (
+<button onClick={function() { setEcran(3); }} style={{ padding: “5px 12px”, borderRadius: 6, border: “1px solid “ + (ecran === 3 ? ACC : “transparent”), background: ecran === 3 ? SURF : “transparent”, color: ecran === 3 ? ACC : MUTE, fontSize: 11, cursor: “pointer”, fontFamily: “sans-serif” }}>Résultats</button>
+)}
+{resultat && (
+<button onClick={function() { setEcran(4); }} style={{ padding: “5px 12px”, borderRadius: 6, border: “1px solid “ + (ecran === 4 ? ACC : “transparent”), background: ecran === 4 ? SURF : “transparent”, color: ecran === 4 ? ACC : MUTE, fontSize: 11, cursor: “pointer”, fontFamily: “sans-serif” }}>Catalogue</button>
+)}
+{resultat && (
+<button onClick={function() { setEcran(6); }} style={{ padding: “5px 12px”, borderRadius: 6, border: “1px solid “ + (ecran === 6 ? ACC : “transparent”), background: ecran === 6 ? SURF : “transparent”, color: ecran === 6 ? ACC : MUTE, fontSize: 11, cursor: “pointer”, fontFamily: “sans-serif” }}>Banques</button>
+)}
+<button onClick={function() { setEcran(5); }} style={{ padding: “5px 12px”, borderRadius: 6, border: “1px solid “ + (ecran === 5 ? ACC : “transparent”), background: ecran === 5 ? SURF : “transparent”, color: ecran === 5 ? ACC : MUTE, fontSize: 11, cursor: “pointer”, fontFamily: “sans-serif” }}>Roadmap</button>
+</div>
+</div>
+</div>
+);
+}
+
+function Retour(props) {
+return (
+<button onClick={props.onClick} style={{ background: “none”, border: “none”, color: MUTE, fontSize: 12, cursor: “pointer”, padding: “0 0 20px”, display: “block”, fontFamily: “sans-serif” }}>← Retour</button>
+);
+}
+
+function Etapes(props) {
+return (
+<div style={{ display: “flex”, gap: 5, marginBottom: 28 }}>
+{[1,2,3].map(function(i) {
+return <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= props.actuelle ? ACC : BORD }} />;
+})}
+</div>
+);
+}
+
+/* ── Écran 0 : Accueil ─────────────────────────────────── */
+if (ecran === 0) return (
+<div style={page}>
+<Nav />
+<div style={wide}>
+<div style={{ display: “flex”, alignItems: “center”, gap: 8, marginBottom: 24 }}>
+<span style={{ display: “inline-block”, width: 20, height: 4, borderRadius: 2, background: “#c1272d” }} />
+<span style={{ display: “inline-block”, width: 5,  height: 4, borderRadius: 2, background: “#006233” }} />
+<span style={{ display: “inline-block”, width: 20, height: 4, borderRadius: 2, background: “#c1272d” }} />
+<span style={LAB}>Marché marocain · 2025</span>
+</div>
+<h1 style={{ fontSize: “clamp(2rem,5vw,3.4rem)”, fontWeight: 700, lineHeight: 1.1, letterSpacing: “-1.5px”, margin: “0 0 20px”, maxWidth: 640 }}>
+Quelle voiture neuve pouvez-vous <span style={{ color: ACC }}>vraiment financer ?</span>
+</h1>
+<p style={{ fontSize: 16, color: MUTE, lineHeight: 1.8, margin: “0 0 32px”, fontFamily: “sans-serif”, maxWidth: 520 }}>
+Choisissez votre durée de crédit, configurez votre apport et découvrez les véhicules neufs dans votre budget réel.
+</p>
+<div style={{ display: “flex”, gap: 12, marginBottom: 56, flexWrap: “wrap” }}>
+<button onClick={function() { setEcran(1); }} style={btnP}>Calculer mon budget →</button>
+<button onClick={function() { setEcran(5); }} style={btnS}>Voir la roadmap</button>
+</div>
+<div style={{ display: “grid”, gridTemplateColumns: “repeat(auto-fit, minmax(150px, 1fr))”, gap: 1, background: BORD, border: “1px solid “ + BORD, marginBottom: 48 }}>
+{[
+{ val: “50 %”,      lib: “Seuil d’endettement”, src: “Bank Al-Maghrib” },
+{ val: “6 durées”,  lib: “Scénarios de crédit”,  src: “12 à 72 mois” },
+{ val: “0→50 %”,    lib: “Apport configurable”,  src: “Selon votre épargne” },
+{ val: “25 modèles”,lib: “Véhicules neufs”,       src: “Wandaloo.ma 2025” },
+].map(function(k) {
+return (
+<div key={k.val} style={{ background: CARD, padding: “20px 16px” }}>
+<div style={{ fontSize: 22, fontWeight: 700, color: ACC, fontFamily: “Georgia, serif”, marginBottom: 4 }}>{k.val}</div>
+<div style={{ fontSize: 12, fontWeight: 700, color: TEXT, marginBottom: 2, fontFamily: “sans-serif” }}>{k.lib}</div>
+<div style={{ fontSize: 11, color: MUTE, fontFamily: “sans-serif” }}>{k.src}</div>
+</div>
+);
+})}
+</div>
+</div>
+</div>
+);
+
+/* ── Écran 1 : Revenus ─────────────────────────────────── */
+if (ecran === 1) return (
+<div style={page}>
+<Nav />
+<div style={inner}>
+<Retour onClick={function() { setEcran(0); }} />
+<Etapes actuelle={1} />
+<div style={LAB}>Étape 1 / 3</div>
+<h2 style={{ fontSize: “clamp(1.5rem,4vw,2.2rem)”, fontWeight: 700, margin: “8px 0 8px” }}>Vos revenus mensuels nets</h2>
+<p style={{ fontSize: 14, color: MUTE, margin: “0 0 28px”, lineHeight: 1.7, fontFamily: “sans-serif” }}>Après impôts (IR). Aucune donnée n’est stockée.</p>
+<Champ label="Salaire net mensuel"   value={sal}  onChange={setSal}  hint="Après déduction IR et CNSS" />
+<Champ label="Revenus locatifs nets" value={fonc} onChange={setFonc} hint="Loyers perçus après charges" />
+<Champ label="Allocations et aides"  value={alc}  onChange={setAlc}  hint="CNSS, aides directes" />
+<Champ label="Autres revenus"        value={arev} onChange={setArev} hint="Auto-entrepreneur, dividendes…" />
+{totRev > 0 && (
+<div style={{ padding: “12px 16px”, background: “#f0fdf4”, border: “1px solid #86efac”, borderRadius: 8, display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
+<span style={{ fontSize: 13, color: “#15803d”, fontFamily: “sans-serif”, fontWeight: 600 }}>Total revenus nets</span>
+<span style={{ fontSize: 19, fontWeight: 700, color: “#15803d”, fontFamily: “Georgia, serif” }}>{affMAD(totRev)}</span>
+</div>
+)}
+<button onClick={function() { if (totRev > 0) setEcran(2); }} style={{ width: “100%”, padding: “14px”, background: totRev > 0 ? ACC : BORD, color: totRev > 0 ? “#fff” : MUTE, fontSize: 13, fontWeight: 700, border: “none”, borderRadius: 8, cursor: totRev > 0 ? “pointer” : “default”, fontFamily: “sans-serif” }}>
+Mes charges →
+</button>
+</div>
+</div>
+);
+
+/* ── Écran 2 : Charges ─────────────────────────────────── */
+if (ecran === 2) return (
+<div style={page}>
+<Nav />
+<div style={inner}>
+<Retour onClick={function() { setEcran(1); }} />
+<Etapes actuelle={2} />
+<div style={LAB}>Étape 2 / 3</div>
+<h2 style={{ fontSize: “clamp(1.5rem,4vw,2.2rem)”, fontWeight: 700, margin: “8px 0 8px” }}>Vos charges mensuelles fixes</h2>
+<p style={{ fontSize: 14, color: MUTE, margin: “0 0 28px”, lineHeight: 1.7, fontFamily: “sans-serif” }}>La mensualité auto est calculée séparément.</p>
+<Champ label="Loyer ou crédit immobilier" value={loyer} onChange={setLoyer} hint="Mensualité résidence principale" />
+<Champ label="Crédits en cours"           value={cred}  onChange={setCred}  hint="Conso, personnel — total mensualités" />
+<Champ label="Assurances obligatoires"    value={assur} onChange={setAssur} hint="Maladie, prévoyance, habitation" />
+<Champ label="Autres charges fixes"       value={achg}  onChange={setAchg}  hint="Pensions versées…" />
+{totRev > 0 && (
+<div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr”, gap: 8, marginBottom: 12 }}>
+<div style={{ padding: “10px 14px”, background: “#f0fdf4”, border: “1px solid #86efac”, borderRadius: 8 }}>
+<div style={{ fontSize: 10, color: “#15803d”, marginBottom: 3, fontFamily: “sans-serif”, fontWeight: 600, textTransform: “uppercase”, letterSpacing: “1px” }}>Revenus</div>
+<div style={{ fontSize: 16, fontWeight: 700, color: “#15803d”, fontFamily: “Georgia, serif” }}>{affMAD(totRev)}</div>
+</div>
+<div style={{ padding: “10px 14px”, background: “#fef2f2”, border: “1px solid #fca5a5”, borderRadius: 8 }}>
+<div style={{ fontSize: 10, color: “#dc2626”, marginBottom: 3, fontFamily: “sans-serif”, fontWeight: 600, textTransform: “uppercase”, letterSpacing: “1px” }}>Charges</div>
+<div style={{ fontSize: 16, fontWeight: 700, color: “#dc2626”, fontFamily: “Georgia, serif” }}>{affMAD(totChg)}</div>
+</div>
+</div>
+)}
+<button onClick={calculer} style={{ width: “100%”, padding: “14px”, background: totRev > 0 ? ACC : BORD, color: totRev > 0 ? “#fff” : MUTE, fontSize: 13, fontWeight: 700, border: “none”, borderRadius: 8, cursor: totRev > 0 ? “pointer” : “default”, fontFamily: “sans-serif” }}>
+Voir mes scénarios →
+</button>
+</div>
+</div>
+);
+
+/* ── Écran 3 : Scoring + Durée + Apport ────────────────── */
+if (ecran === 3 && resultat) {
+var sc  = scenarioActif();
+var col = couleurTaux(resultat.taux);
+return (
+<div style={page}>
+<Nav />
+<div style={wide}>
+<Retour onClick={function() { setEcran(2); }} />
+<Etapes actuelle={3} />
+
+```
+      {/* Profil */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 28 }}>
+        <div style={{ padding: "16px 18px", background: CARD, border: "1px solid " + BORD, borderRadius: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: col, fontFamily: "sans-serif" }}>{profilTaux(resultat.taux)}</div>
+              <div style={{ fontSize: 10, color: MUTE, fontFamily: "sans-serif", marginTop: 2 }}>Taux d'endettement</div>
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: col, fontFamily: "Georgia, serif" }}>{affPct(resultat.taux)}</div>
+          </div>
+          <div style={{ height: 6, background: SURF, borderRadius: 3 }}>
+            <div style={{ height: "100%", width: Math.min(resultat.taux * 100, 100) + "%", background: col, borderRadius: 3 }} />
+          </div>
+          <div style={{ fontSize: 10, color: MUTE, fontFamily: "sans-serif", marginTop: 4, textAlign: "right" }}>50% max · Bank Al-Maghrib</div>
+        </div>
+        <div style={{ padding: "16px 18px", background: CARD, border: "1px solid " + BORD, borderRadius: 10 }}>
+          <div style={{ fontSize: 10, color: MUTE, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 6 }}>Mensualité auto max</div>
+          <div style={{ fontSize: 28, fontWeight: 700, color: ACC, fontFamily: "Georgia, serif", marginBottom: 4 }}>{affMAD(resultat.mensMax)}</div>
+          <div style={{ fontSize: 11, color: MUTE, fontFamily: "sans-serif" }}>{affMAD(totRev) + " revenus − " + affMAD(totChg) + " charges"}</div>
+        </div>
+      </div>
+
+      {/* Apport toggle */}
+      <div style={{ padding: "18px 20px", background: CARD, border: "1px solid " + BORD, borderRadius: 12, marginBottom: 28 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: avecApport ? 16 : 0 }}>
+          <div>
+            <div style={LAB}>Apport personnel</div>
+            <div style={{ fontSize: 12, color: MUTE, fontFamily: "sans-serif", marginTop: 3 }}>Augmente votre budget total véhicule</div>
+          </div>
+          <button onClick={function() { setAvecApport(!avecApport); }} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+            <div style={{ width: 44, height: 24, borderRadius: 12, background: avecApport ? ACC : BORD, position: "relative", transition: "background 0.2s" }}>
+              <div style={{ position: "absolute", top: 3, left: avecApport ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+            </div>
+            <span style={{ fontSize: 12, fontFamily: "sans-serif", color: avecApport ? ACC : MUTE, fontWeight: 600 }}>{avecApport ? "Avec apport" : "Sans apport"}</span>
+          </button>
+        </div>
+        {avecApport && (
+          <div>
+            <div style={{ fontSize: 11, color: MUTE, fontFamily: "sans-serif", marginBottom: 10 }}>Quel pourcentage du prix du véhicule payez-vous comptant ?</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {APPORTS.map(function(a) {
+                var actif = apportPct === a;
+                return (
+                  <button key={a} onClick={function() { setApportPct(a); }} style={{ padding: "10px 18px", border: "2px solid " + (actif ? ACC : BORD), background: actif ? ACC : CARD, color: actif ? "#fff" : TEXT, borderRadius: 8, cursor: "pointer", fontFamily: "sans-serif", fontSize: 14, fontWeight: 700, minWidth: 60, textAlign: "center" }}>
+                    {a + "%"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Slider durée */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+          <div style={LAB}>Durée du crédit</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ fontSize: 10, color: MUTE, fontFamily: "sans-serif" }}>Taux /an :</div>
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                type="number"
+                min="1" max="30" step="0.1"
+                value={tauxCustom !== null ? tauxCustom : parseFloat((getTaux(duree) * 100).toFixed(1))}
+                onChange={function(e) {
+                  var v = parseFloat(e.target.value);
+                  if (!isNaN(v) && v > 0 && v <= 30) setTauxCustom(v);
+                }}
+                style={{ width: 70, padding: "5px 28px 5px 10px", border: "2px solid " + (tauxCustom !== null ? ACC : BORD), borderRadius: 8, fontSize: 13, fontWeight: 700, color: tauxCustom !== null ? ACC : TEXT, fontFamily: "sans-serif", background: tauxCustom !== null ? ACC + "10" : CARD, outline: "none", appearance: "textfield", MozAppearance: "textfield" }}
+              />
+              <span style={{ position: "absolute", right: 8, fontSize: 10, color: MUTE, fontFamily: "sans-serif", pointerEvents: "none" }}>%</span>
+            </div>
+            {tauxCustom !== null && (
+              <button onClick={function() { setTauxCustom(null); }} style={{ fontSize: 10, color: MUTE, background: "none", border: "none", cursor: "pointer", fontFamily: "sans-serif", padding: "2px 6px", borderRadius: 4, border: "1px solid " + BORD }}>
+                Réinitialiser
+              </button>
+            )}
+          </div>
+        </div>
+        <SliderDuree
+          dureeChoisie={duree}
+          setDuree={function(m) { setDuree(m); setTauxCustom(null); }}
+          mensMax={resultat.mensMax}
+          apportPct={apEffectif()}
+          getTaux={getTaux}
+        />
+      </div>
+
+      {/* Récap scénario choisi */}
+      {sc && (
+        <div style={{ padding: 20, background: TEXT, borderRadius: 12, marginBottom: 24, color: "#fff" }}>
+          <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "2px", color: "#9ca3af", marginBottom: 14, fontFamily: "sans-serif" }}>
+            {"Scénario retenu · " + duree + " mois · " + (sc.tauxAnnuel * 100).toFixed(1) + "%/an" + (avecApport && apportPct > 0 ? " · apport " + apportPct + "%" : "")}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 14, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 9, color: "#9ca3af", fontFamily: "sans-serif", textTransform: "uppercase", marginBottom: 4 }}>Mensualité max</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#fbbf24", fontFamily: "Georgia, serif" }}>{affMAD(resultat.mensMax)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 9, color: "#9ca3af", fontFamily: "sans-serif", textTransform: "uppercase", marginBottom: 4 }}>Capital emprunté</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#a5f3fc", fontFamily: "Georgia, serif" }}>{affMAD(sc.cap)}</div>
+            </div>
+            {avecApport && apportPct > 0 && (
+              <div>
+                <div style={{ fontSize: 9, color: "#9ca3af", fontFamily: "sans-serif", textTransform: "uppercase", marginBottom: 4 }}>{"Apport " + apportPct + "%"}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#86efac", fontFamily: "Georgia, serif" }}>{affMAD(sc.apportMontant)}</div>
+              </div>
+            )}
+          </div>
+          <div style={{ borderTop: "1px solid #374151", paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: "#6b7280", fontFamily: "sans-serif" }}>Budget total véhicule</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: "#fff", fontFamily: "Georgia, serif" }}>{affMAD(sc.budget)}</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, paddingTop: 2 }}>
+            <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.05)", borderRadius: 8 }}>
+              <div style={{ fontSize: 9, color: "#6b7280", fontFamily: "sans-serif", textTransform: "uppercase", marginBottom: 4 }}>Coût total du crédit</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#fca5a5", fontFamily: "Georgia, serif" }}>{affMAD(sc.coutTotalCredit)}</div>
+            </div>
+            <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.05)", borderRadius: 8 }}>
+              <div style={{ fontSize: 9, color: "#6b7280", fontFamily: "sans-serif", textTransform: "uppercase", marginBottom: 4 }}>Dont intérêts payés</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#fdba74", fontFamily: "Georgia, serif" }}>{affMAD(sc.interets)}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CTA Comparateur */}
+      {sc && (
+        <button onClick={function() { setEcran(6); }} style={{ width: "100%", padding: "14px", background: CARD, color: TEXT, fontSize: 13, fontWeight: 700, border: "2px solid " + BORD, borderRadius: 8, cursor: "pointer", fontFamily: "sans-serif", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <span style={{ fontSize: 16 }}>⇄</span>
+          Comparer les offres bancaires →
+        </button>
+      )}
+
+      {/* Segment véhicule */}
+      <div style={LAB}>Quel type de véhicule ?</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 8, margin: "12px 0 20px" }}>
+        {CATS.map(function(c) {
+          var actif = cat === c;
+          return (
+            <button key={c} onClick={function() { setCat(c); }} style={{ padding: "12px 8px", border: "2px solid " + (actif ? ACC : BORD), background: actif ? SURF : CARD, borderRadius: 8, cursor: "pointer", textAlign: "center", fontFamily: "sans-serif", fontSize: 12, fontWeight: actif ? 700 : 400, color: actif ? ACC : TEXT }}>
+              {CAT_LABELS[c]}
+            </button>
+          );
+        })}
+      </div>
+      <button onClick={function() { setEcran(4); }} style={{ width: "100%", padding: "15px", background: ACC, color: "#fff", fontSize: 13, fontWeight: 700, border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "sans-serif" }}>
+        Voir les voitures accessibles →
+      </button>
+    </div>
+  </div>
+);
+```
+
+}
+
+/* ── Écran 4 : Catalogue ───────────────────────────────── */
+if (ecran === 4 && resultat) {
+var sc       = scenarioActif();
+var budget   = sc ? sc.budget : 0;
+var liste    = VOITURES.filter(function(v) { return v.cat === cat; });
+var nbOk     = liste.filter(function(v) { return v.prix <= budget; }).length;
+var nbEtire  = liste.filter(function(v) { return v.prix > budget && v.prix <= budget * 1.2; }).length;
+var affichees = voituresFiltrees();
+return (
+<div style={page}>
+<Nav />
+<div style={wide}>
+<Retour onClick={function() { setEcran(3); }} />
+
+```
+      {/* En-tête */}
+      <div style={{ padding: "16px 20px", background: TEXT, borderRadius: 12, marginBottom: 24, color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 9, color: "#9ca3af", fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
+            {CAT_LABELS[cat] + " · " + duree + " mois · " + (sc ? (sc.tauxAnnuel * 100).toFixed(1) : "") + "%/an" + (avecApport && apportPct > 0 ? " · apport " + apportPct + "%" : "")}
+          </div>
+          <div style={{ fontSize: "clamp(1.4rem,3vw,2.2rem)", fontWeight: 700, color: "#fff", fontFamily: "Georgia, serif", letterSpacing: "-0.5px" }}>{affMAD(budget)}</div>
+        </div>
+        <div style={{ display: "flex", gap: 18 }}>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#fbbf24", fontFamily: "Georgia, serif" }}>{affMAD(resultat.mensMax) + " /mois"}</div>
+            <div style={{ fontSize: 9, color: "#9ca3af", fontFamily: "sans-serif", marginTop: 2 }}>mensualité max</div>
+          </div>
+          {avecApport && apportPct > 0 && sc && (
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#86efac", fontFamily: "Georgia, serif" }}>{affMAD(sc.apportMontant)}</div>
+              <div style={{ fontSize: 9, color: "#9ca3af", fontFamily: "sans-serif", marginTop: 2 }}>{"apport " + apportPct + "%"}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs + filtres catégorie */}
+      <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid " + BORD, marginBottom: 20, flexWrap: "wrap", gap: 0 }}>
+        {[
+          { k: "ok",    t: "Dans le budget (" + nbOk + ")" },
+          { k: "etire", t: "Avec effort (" + nbEtire + ")" },
+          { k: "tous",  t: "Tous" },
+        ].map(function(o) {
+          var a = onglet === o.k;
+          return (
+            <button key={o.k} onClick={function() { setOnglet(o.k); }} style={{ padding: "9px 16px", border: "none", background: "none", color: a ? ACC : MUTE, fontSize: 12, fontWeight: a ? 700 : 400, borderBottom: "2px solid " + (a ? ACC : "transparent"), marginBottom: -1, cursor: "pointer", fontFamily: "sans-serif" }}>
+              {o.t}
+            </button>
+          );
+        })}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 5, paddingBottom: 10 }}>
+          {CATS.map(function(c) {
+            var a = cat === c;
+            return (
+              <button key={c} onClick={function() { setCat(c); setOnglet("ok"); }} style={{ padding: "3px 9px", border: "1px solid " + (a ? ACC : BORD), background: a ? ACC + "15" : "transparent", color: a ? ACC : MUTE, fontSize: 10, borderRadius: 4, cursor: "pointer", fontFamily: "sans-serif", fontWeight: a ? 700 : 400 }}>
+                {CAT_LABELS[c]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {affichees.length === 0 ? (
+        <div style={{ padding: "48px 20px", textAlign: "center", background: CARD, border: "1px solid " + BORD, borderRadius: 10 }}>
+          <div style={{ color: MUTE, fontFamily: "sans-serif" }}>Aucun modèle dans ce filtre.</div>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))", gap: 14 }}>
+          {affichees.map(function(v, i) {
+            return <Carte key={i} voiture={v} budget={budget} />;
+          })}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 10, marginTop: 28, flexWrap: "wrap" }}>
+        <button onClick={function() { setEcran(3); }} style={btnS}>← Modifier les paramètres</button>
+        <button onClick={function() { setEcran(0); setResultat(null); }} style={btnS}>Nouvelle simulation</button>
+        <button onClick={function() { setEcran(5); }} style={btnP}>Roadmap →</button>
+      </div>
+    </div>
+  </div>
+);
+```
+
+}
+
+/* ── Écran 5 : Roadmap ─────────────────────────────────── */
+if (ecran === 5) return (
+<div style={page}>
+<Nav />
+<div style={{ maxWidth: 700, margin: “0 auto”, padding: “40px 20px 80px” }}>
+<button onClick={function() { setEcran(resultat ? 4 : 0); }} style={{ background: “none”, border: “none”, color: MUTE, fontSize: 12, cursor: “pointer”, padding: “0 0 20px”, display: “block”, fontFamily: “sans-serif” }}>← Retour</button>
+
+```
+    <div style={{ fontSize: 10, color: ACC, textTransform: "uppercase", letterSpacing: "2px", fontFamily: "sans-serif", fontWeight: 700, marginBottom: 8 }}>Product Roadmap</div>
+    <h2 style={{ fontSize: "clamp(1.5rem,4vw,2.4rem)", fontWeight: 700, margin: "0 0 10px", letterSpacing: "-0.5px" }}>La fintech auto du marché marocain.</h2>
+    <p style={{ fontSize: 14, color: MUTE, margin: "0 0 44px", lineHeight: 1.8, fontFamily: "sans-serif", maxWidth: 520 }}>
+      Rendre le financement automobile transparent et accessible à tous les Marocains, étape par étape.
+    </p>
+
+    {/* Timeline */}
+    <div style={{ position: "relative", paddingLeft: 0 }}>
+      {ROADMAP.map(function(item, i) {
+        var live   = item.st === "live";
+        var build  = item.st === "build";
+        var soon   = item.st === "soon";
+        var vision = item.st === "vision";
+        var dotBg  = live ? ACC : build ? SURF : CARD;
+        var dotBorder = (live || build) ? ACC : BORD;
+        var dotColor  = live ? "#fff" : build ? ACC : MUTE;
+        return (
+          <div key={i} style={{ display: "flex", gap: 18, marginBottom: 0 }}>
+            {/* Ligne verticale + point */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: dotBg, border: "2px solid " + dotBorder, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: dotColor, zIndex: 1, boxShadow: build ? "0 0 0 4px " + ACC + "18" : "none" }}>
+                {live ? "✓" : build ? "●" : "○"}
+              </div>
+              {i < ROADMAP.length - 1 && (
+                <div style={{ width: 2, flex: 1, minHeight: 24, background: i < 2 ? ACC : BORD, opacity: i < 2 ? 0.4 : 0.3 }} />
+              )}
+            </div>
+            {/* Contenu */}
+            <div style={{ paddingTop: 6, paddingBottom: 28 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 5, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 10, color: MUTE, fontFamily: "sans-serif" }}>{item.ph}</span>
+                {live && (
+                  <span style={{ fontSize: 8, padding: "2px 7px", background: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: 4, fontWeight: 700, letterSpacing: "1px", fontFamily: "sans-serif" }}>LIVE</span>
+                )}
+                {build && (
+                  <span style={{ fontSize: 8, padding: "2px 7px", background: SURF, color: ACC, border: "1px solid " + BORD, borderRadius: 4, fontWeight: 700, letterSpacing: "1px", fontFamily: "sans-serif" }}>EN COURS</span>
+                )}
+                {soon && (
+                  <span style={{ fontSize: 8, padding: "2px 7px", background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", borderRadius: 4, fontFamily: "sans-serif" }}>BIENTÔT</span>
+                )}
+                {vision && (
+                  <span style={{ fontSize: 8, padding: "2px 7px", background: "#f5f3ff", color: "#6d28d9", border: "1px solid #ddd6fe", borderRadius: 4, fontFamily: "sans-serif" }}>VISION</span>
+                )}
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: vision ? MUTE : TEXT, marginBottom: 4, fontFamily: "Georgia, serif" }}>{item.t}</div>
+              <div style={{ fontSize: 12, color: MUTE, lineHeight: 1.7, fontFamily: "sans-serif", maxWidth: 480 }}>{item.d}</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* Vision DriveScore */}
+    <div style={{ padding: "22px 24px", background: TEXT, borderRadius: 12, marginTop: 4, color: "#fff" }}>
+      <div style={{ fontSize: 9, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "2px", fontFamily: "sans-serif", marginBottom: 10 }}>Vision finale · DriveScore™ MA</div>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10, fontFamily: "Georgia, serif" }}>Le score de solvabilité auto pensé pour le Maroc.</div>
+      <p style={{ fontSize: 12, color: "#9ca3af", lineHeight: 1.8, margin: "0 0 16px", fontFamily: "sans-serif" }}>
+        Un score propriétaire combinant profil financier, télématique OBD2, cote Wandaloo et comportement bancaire — pour que chaque Marocain connaisse sa capacité réelle avant d'entrer dans une concession.
+      </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {["Bank Al-Maghrib", "Open Banking MA", "Wandaloo Argus", "CNIA Assurance", "OBD2 Telematics"].map(function(t) {
+          return (
+            <span key={t} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 5, fontSize: 10, color: "#d1d5db", fontFamily: "sans-serif" }}>{t}</span>
+          );
+        })}
+      </div>
+    </div>
+
+    <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
+      <button onClick={function() { setEcran(resultat ? 4 : 0); }} style={btnS}>{resultat ? "← Catalogue" : "← Accueil"}</button>
+      <button onClick={function() { setEcran(resultat ? 3 : 1); }} style={btnP}>{resultat ? "Mes résultats →" : "Démarrer →"}</button>
+    </div>
+  </div>
+</div>
+```
+
+);
+
+/* ── Écran 6 : Comparateur banques ─────────────────────── */
+if (ecran === 6 && resultat) {
+var sc6 = scenarioActif();
+var sims = BANQUES.map(function(b) {
+var r = calcScenarioBanque(b);
+return { banque: b, sim: r };
+}).sort(function(a, b) { return a.sim.tauxAnnuel - b.sim.tauxAnnuel; });
+var meilleur = sims[0];
+var economie = sims[sims.length - 1].sim.interets - meilleur.sim.interets;
+return (
+<div style={page}>
+<Nav />
+<div style={{ maxWidth: 700, margin: “0 auto”, padding: “24px 16px 80px” }}>
+<button onClick={function() { setEcran(3); }} style={{ background: “none”, border: “none”, color: MUTE, fontSize: 12, cursor: “pointer”, padding: “0 0 16px”, display: “block”, fontFamily: “sans-serif” }}>← Retour</button>
+
+```
+      <div style={{ fontSize: 10, color: ACC, textTransform: "uppercase", letterSpacing: "2px", fontFamily: "sans-serif", fontWeight: 700, marginBottom: 6 }}>Comparateur bancaire</div>
+      <h2 style={{ fontSize: "clamp(1.3rem,3.5vw,2rem)", fontWeight: 700, margin: "0 0 4px", fontFamily: "Georgia, serif" }}>6 établissements · votre profil</h2>
+      <p style={{ fontSize: 12, color: MUTE, margin: "0 0 20px", fontFamily: "sans-serif" }}>
+        {duree + " mois · " + affMAD(resultat.mensMax) + "/mois · " + (avecApport && apportPct > 0 ? "apport " + apportPct + "% · " : "") + "données simulées à titre indicatif"}
+      </p>
+
+      {/* Économie potentielle */}
+      <div style={{ padding: "14px 18px", background: TEXT, borderRadius: 10, marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 9, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", fontFamily: "sans-serif", marginBottom: 4 }}>Meilleure offre simulée</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: "Georgia, serif" }}>{meilleur.banque.nom}</div>
+          <div style={{ fontSize: 10, color: "#9ca3af", fontFamily: "sans-serif", marginTop: 2 }}>{(meilleur.sim.tauxAnnuel * 100).toFixed(2) + "% /an"}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 9, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", fontFamily: "sans-serif", marginBottom: 4 }}>Économie vs offre la plus chère</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#86efac", fontFamily: "Georgia, serif" }}>{affMAD(economie)}</div>
+          <div style={{ fontSize: 10, color: "#6b7280", fontFamily: "sans-serif", marginTop: 2 }}>sur la durée totale du crédit</div>
+        </div>
+      </div>
+
+      {/* En-têtes colonnes */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 90px 90px", gap: 8, padding: "6px 14px", marginBottom: 6 }}>
+        {["Établissement", "Taux /an", "Budget", "Intérêts"].map(function(h) {
+          return <div key={h} style={{ fontSize: 9, color: MUTE, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "1px" }}>{h}</div>;
+        })}
+      </div>
+
+      {/* Cartes banques */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {sims.map(function(item, i) {
+          var b = item.banque;
+          var s = item.sim;
+          var isBest = i === 0;
+          var barW = Math.min(100, (s.tauxAnnuel / sims[sims.length - 1].sim.tauxAnnuel) * 100);
+          return (
+            <div key={b.nom} style={{ padding: "14px 16px", background: isBest ? TEXT : CARD, border: "1px solid " + (isBest ? TEXT : BORD), borderRadius: 12, position: "relative", boxShadow: isBest ? "0 4px 16px rgba(0,0,0,0.12)" : "none" }}>
+              {isBest && (
+                <div style={{ position: "absolute", top: -8, left: 14, background: ACC, color: "#fff", fontSize: 8, fontWeight: 700, padding: "2px 8px", borderRadius: 4, fontFamily: "sans-serif", letterSpacing: "1px" }}>MEILLEURE OFFRE</div>
+              )}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 90px 90px", gap: 8, alignItems: "center" }}>
+                {/* Nom + badge */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 6, background: "#" + b.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", fontFamily: "sans-serif", flexShrink: 0 }}>{b.code}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isBest ? "#fff" : TEXT, fontFamily: "Georgia, serif" }}>{b.nom}</div>
+                  </div>
+                  <div style={{ fontSize: 9, color: isBest ? "#9ca3af" : MUTE, fontFamily: "sans-serif", marginBottom: 6 }}>{b.note}</div>
+                  {/* Barre de taux comparatif */}
+                  <div style={{ height: 3, background: isBest ? "#374151" : SURF, borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: barW + "%", background: "#" + b.color, borderRadius: 2 }} />
+                  </div>
+                </div>
+                {/* Taux */}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: isBest ? "#fbbf24" : ACC, fontFamily: "Georgia, serif" }}>{(s.tauxAnnuel * 100).toFixed(2) + "%"}</div>
+                  {tauxCustom !== null && b.taux[duree] !== s.tauxAnnuel && (
+                    <div style={{ fontSize: 8, color: MUTE, fontFamily: "sans-serif", marginTop: 2 }}>{"Base: " + (b.taux[duree] * 100).toFixed(1) + "%"}</div>
+                  )}
+                </div>
+                {/* Budget */}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: isBest ? "#fff" : TEXT, fontFamily: "Georgia, serif" }}>{affMAD(s.budget)}</div>
+                  <div style={{ fontSize: 8, color: isBest ? "#9ca3af" : MUTE, fontFamily: "sans-serif", marginTop: 2 }}>{"capital " + affMAD(s.cap)}</div>
+                </div>
+                {/* Intérêts */}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: isBest ? "#fca5a5" : "#c1272d", fontFamily: "Georgia, serif" }}>{affMAD(s.interets)}</div>
+                  <div style={{ fontSize: 8, color: isBest ? "#9ca3af" : MUTE, fontFamily: "sans-serif", marginTop: 2 }}>{"frais " + affMAD(s.frais)}</div>
+                </div>
+              </div>
+              {/* Assurance + mensualité totale */}
+              <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid " + (isBest ? "#374151" : BORD), display: "flex", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 9, color: isBest ? "#9ca3af" : MUTE, fontFamily: "sans-serif" }}>
+                  {"Assurance : " + affMAD(s.assurMens) + "/mois (" + (b.assurance * 100).toFixed(2) + "%/an)"}
+                </div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: isBest ? "#a5f3fc" : ACC, fontFamily: "sans-serif" }}>
+                  {"Mensualité totale (crédit + assurance) : " + affMAD(s.mensualiteTotale) + "/mois"}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Disclaimer */}
+      <div style={{ marginTop: 20, padding: "12px 16px", background: SURF, border: "1px solid " + BORD, borderRadius: 8 }}>
+        <div style={{ fontSize: 9, color: MUTE, fontFamily: "sans-serif", lineHeight: 1.7 }}>
+          ⚠️ Données simulées à titre indicatif. Les taux réels dépendent de votre dossier, de la politique commerciale de chaque établissement et des conditions du marché. Consultez un conseiller bancaire pour une offre personnalisée. Conformément à la loi 31-08, tout crédit vous engage et doit être remboursé. Vérifiez vos capacités avant de vous engager.
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+        <button onClick={function() { setEcran(3); }} style={btnS}>← Modifier les paramètres</button>
+        <button onClick={function() { setEcran(4); }} style={btnP}>Voir le catalogue →</button>
+      </div>
+    </div>
+  </div>
+);
+```
+
+}
+
+return null;
+}
+
+const root = ReactDOM.createRoot(document.getElementById(“root”));
+root.render(React.createElement(DriveIQMaroc));
+
+  </script>
+</body>
+</html>
